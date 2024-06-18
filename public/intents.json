@@ -1,31 +1,24 @@
 {
-    "name": "Linux.do forum content searcher",
-    "description": "Search for content on the Linux.do forum.",
+    "name": "Bangumi Calendar",
+    "description": "List the daily bangumi calendar",
     "intents": [
         {
-            "name": "search_linux_do",
-            "description": "Search for content on the Linux.do forum with a term.",
+            "name": "list_bangumi_calendar",
+            "description": "List the daily bangumi calendar",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "term": {
-                        "type": "string",
-                        "description": "The term to search for."
-                    }
-                },
-                "required": [
-                    "term"
-                ]
+                "properties": {},
+                "required": []
             },
             "async": true,
-            "link": "/?term={term}",
-            "example": "/?term=intents",
+            "link": "/",
+            "example": "/",
             "returns": {
                 "type": "object",
                 "properties": {
                     "response": {
                         "type": "string",
-                        "description": "The response from the Linux.do forum."
+                        "description": "The bangumi calendar in text format"
                     }
                 }
             }

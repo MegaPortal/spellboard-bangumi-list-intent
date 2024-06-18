@@ -1,69 +1,52 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-export interface User {
-    id: number;
-    username: string;
-    name: string;
-    avatar_template: string;
-}
-
-export interface Post {
+interface Anime {
     id: number;
     name: string;
-    username: string;
-    avatar_template: string;
+    name_jp: string;
+    cover: string;
+    type: number;
+    anime_tag_id: string;
+    show_year: string;
+    show_quarter: number;
+    show_month_day: string;
+    show_time: string | null;
+    show_week: number | null;
+    intro: string;
+    play_address: { anime_play_net_id: number; area: string; address: string; logo: string }[];
+    pv_address: { cover: string; address: string }[];
+    cv: string[];
+    staff: string[];
+    episode_sum: number;
+    official_web: string;
+    show_date: number;
+    end: number;
+    end_date: number;
     created_at: string;
-    like_count: number;
-    blurb: string;
-    post_number: number;
-    topic_id: number;
+    updated_at: string;
+    is_keep: number;
+    tag: string[];
 }
 
-export interface Topic {
-    id: number;
-    title: string;
-    fancy_title: string;
-    slug: string;
-    posts_count: number;
-    reply_count: number;
-    highest_post_number: number;
-    created_at: string;
-    last_posted_at: string;
-    bumped: boolean;
-    bumped_at: string;
-    archetype: string;
-    unseen: boolean;
-    pinned: boolean;
-    unpinned: boolean | null;
-    visible: boolean;
-    closed: boolean;
-    archived: boolean;
-    bookmarked: boolean | null;
-    liked: boolean | null;
-    tags: string[];
-    tags_descriptions: Record<string, string>;
-    category_id: number;
-    has_accepted_answer: boolean;
-    can_have_answer: boolean;
+interface WeekData {
+    [key: string]: Anime[];
 }
 
-export interface DiscussionStream {
-    posts: Post[];
-    topics: Topic[];
-    users: User[];
-}
-
-export interface DiscussionDataResponse {
-    data: DiscussionStream;
+interface AnimeDataResponse {
     status: string;
+    code: number;
+    message: string;
+    data: {
+        week: WeekData;
+        info: Anime[];
+    };
 }
 
-export const reindexData = (data: any): DiscussionStream => {
-    return data;
-};
-
-export const useData = (searchTerm: string, interval: number = 60000) => {
-    const [data, setData] = useState<DiscussionStream | null>(null);
+export const useAnimeData = (interval: number = 60000) => {
+    const [animeData, setAnimeData] = useState<{
+        week: WeekData;
+        info: Anime[];
+    } | null>(null);
     const [error, setError] = useState<Error | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const hasFetchedOnce = useRef(false);
@@ -71,39 +54,38 @@ export const useData = (searchTerm: string, interval: number = 60000) => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await fetch(`/api/search?term=${searchTerm}`, {
+            const response = await fetch('/api/search', {
                 cache: 'no-cache',
             });
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
-            const rawData: DiscussionDataResponse = await response.json();
-            const reindexedData = reindexData(rawData);
-            setData(reindexedData);
+            const rawData: AnimeDataResponse = await response.json();
+            setAnimeData(rawData.data);
         } catch (err) {
             setError(err as Error);
         } finally {
             setLoading(false);
         }
-    }, [searchTerm]);
+    }, []);
 
     useEffect(() => {
-        if (searchTerm && !hasFetchedOnce.current) {
+        if (!hasFetchedOnce.current) {
             fetchData();
             hasFetchedOnce.current = true;
             const intervalId = setInterval(fetchData, interval);
 
             return () => clearInterval(intervalId);
         }
-    }, [searchTerm, fetchData, interval]);
+    }, [fetchData, interval]);
 
     const refresh = () => {
         setError(null);
-        setData(null);
+        setAnimeData(null);
         fetchData();
     };
 
-    return { data, error, loading, refresh };
+    return { data: animeData, error, loading, refresh };
 };
 
-export default useData;
+export default useAnimeData;

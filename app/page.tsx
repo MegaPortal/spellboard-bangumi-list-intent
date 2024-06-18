@@ -1,11 +1,14 @@
 'use client';
 
-import { Button } from '@nextui-org/react';
+import { Button, CardFooter, Chip } from '@nextui-org/react';
 import { NextUIProvider } from "@nextui-org/react";
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import useData from './use-data';
-import { Card, CardHeader, CardBody, CardFooter, Divider, Link, Image, Chip, Avatar, Spinner } from "@nextui-org/react";
+import { Listbox, ListboxItem, ListboxSection, Spinner } from "@nextui-org/react";
+import { Card, CardHeader, CardBody, Image as NextImage } from "@nextui-org/react";
+import Image from 'next/image';
+import Link from 'next/link';
 
 export default function Home() {
 
@@ -22,15 +25,58 @@ export default function Home() {
   );
 }
 
+let weekKeys = ["1", "2", "3", "4", "5", "6", "7"];
+let weekString = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+let jpnWeekString = ["月", "火", "水", "木", "金", "土", "日"];
+
+// shuffle to start from now day
+const now = new Date();
+const day = now.getDay();
+weekKeys = weekKeys.slice(day - 1).concat(weekKeys.slice(0, day - 1));
+weekString = weekString.slice(day - 1).concat(weekString.slice(0, day - 1));
+jpnWeekString = jpnWeekString.slice(day - 1).concat(jpnWeekString.slice(0, day - 1));
+
 function SearchList() {
 
+  const { data, error, loading, refresh } = useData();
+
   const search = useSearchParams();
+  const spCallbackToken = search?.get('spCallbackToken');
+  const origin = search?.get('origin');
 
-  const query = search?.get('term') || '';
+  useEffect(() => {
+    if (error) {
+      return;
+    }
 
-  const { data, error, loading, refresh } = useData(query);
+    if (!data) {
+      return;
+    }
 
-  if (loading) {
+    if (!spCallbackToken) {
+      return;
+    }
+
+    const text = weekKeys.map((key, index) => {
+      return data?.week?.[key].map((anime) => {
+        const id = anime.id;
+        const info = data?.info?.find((item) => item.id === id);
+        let text = `-----\n星期${key} / ${jpnWeekString[index]} / ${anime.name} / ${info?.episode_sum} Episodes / ${info?.show_year} / ${info?.show_quarter} / ${info?.show_month_day} / ${info?.show_time} / ${info?.tag.join('、')}`;
+        text += `\n${anime.name}`;
+        text += `\n-----`;
+        return text;
+      }).join('\n');
+    }).join('\n\n');
+
+    window.parent.postMessage({
+      type: 'spell-response',
+      token: spCallbackToken,
+      content: text
+    }, origin || '*');
+
+  }, [data, error, origin, spCallbackToken]);
+
+  if (loading || !data) {
     return <div className='flex flex-row items-center justify-center h-[300px]'>
       <Spinner />
     </div>;
@@ -45,72 +91,53 @@ function SearchList() {
 
   return (
     <div>
-      {data?.topics?.map((topic, index) => {
+      <div>
+        {data?.week ? weekKeys.map((key, index) => {
+          return (
+            <div title={
+              weekString[parseInt(key) - 1]
+            } key={key}>
+              {data?.week?.[key].map((anime) => {
 
-        const post = data.posts.find(post => post.topic_id === topic.id);
+                const id = anime.id;
+                const info = data?.info?.find((item) => item.id === id);
 
-        return <Card key={index} className="max-w-[300px] group mb-2">
-          <CardHeader className="flex gap-3">
-            <div className='flex flex-row items-top justify-center'>
-              <Avatar src={`https://cdn.linux.do/${post?.avatar_template.replace("{size}", "48")}`} alt={topic?.title} className='mr-2' />
-              <div className="flex flex-1 flex-col">
-                <Link isExternal href={`https://linux.do/t/topic/${post?.topic_id || ""}`} className="text-sm line-clamp-1 font-bold group-hover:underline">{topic?.title}</Link>
-                <p className="text-sm text-default-500 line-clamp-1">
-                  {topic?.tags.length ? topic?.tags.map((tag, index) => {
-                    return (
-                      <span key={index} className="mr-1 text-default-600">#{tag}</span>
-                    )
-                  }) : null}
-                </p>
-              </div>
+                return (
+                  <Link href={`https://www.miluxing.com/`} key={anime.id} target='_blank'>
+                    <Card key={anime.id} className="pb-4 mb-2 group cursor-pointer" radius='none'>
+                      <CardHeader className="pb-0 pt-2 px-4 flex-col items-start">
+                        <p className="text-tiny uppercase font-bold">{weekString[index]} / 星期{key} / {jpnWeekString[index]}</p>
+                        <small className="text-default-500">{info?.episode_sum} Episodes / {info?.show_year} / {info?.show_quarter} / {info?.show_month_day} / {info?.show_time}</small>
+                        <h4 className="font-bold text group-hover:underline">{anime.name}</h4>
+                      </CardHeader>
+                      <CardBody className="overflow-visible py-2">
+                        <Image
+                          alt="Card background"
+                          className="object-cover rounded-xl h-40 w-full mb-2"
+                          src={anime.cover}
+                          width={270}
+                          height={180}
+                        />
+                        <p className="text-default-500 text-small line-clamp-3">
+                          {info?.intro}
+                        </p>
+                      </CardBody>
+                      <CardFooter>
+                        {info?.tag.map((tag) => {
+                          return <Chip key={tag} className="text-tiny text-default-500 mr-2">{tag}</Chip>
+                        })}
+                      </CardFooter>
+                    </Card>
+                  </Link>
+                );
+              })}
             </div>
-          </CardHeader>
-          <Divider />
-          <CardBody>
-            <p className='line-clamp-5 text-sm'>{post?.blurb}</p>
-          </CardBody>
-          <Divider />
-          <CardFooter>
-            <Chip className={"text-sm mr-1"}
-              variant="flat"
-              avatar={
-                <Avatar
-                  fallback="💬"
-                  alt="nextui logo"
-                />
-              }
-            >
-              {topic?.posts_count}
-            </Chip>
-            <Chip className={"text-sm mr-1"}
-              variant="flat"
-              avatar={
-                <Avatar
-                  fallback="🩷"
-                  alt="nextui logo"
-                />
-              }
-            >
-              {post?.like_count}
-            </Chip>
-            <Chip className={"text-sm mr-1"}
-              variant="flat"
-              avatar={
-                <Avatar
-                  fallback="↩️"
-                  alt="nextui logo"
-                />
-              }
-            >
-              {topic?.reply_count}
-            </Chip>
-          </CardFooter>
-        </Card>
-      }) || <Card>
-          <CardBody>
-            <p>😕 No results found</p>
-          </CardBody>
-        </Card>}
+          );
+        }) : <div>
+          <p>No data</p>
+        </div>}
+      </div>
+
     </div>
   );
 }
